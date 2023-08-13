@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 # from lama_inpaint import inpaint_img_with_lama
 from utils import get_clicked_point, get_box_point, get_brush_point
-from utils import sam_segment_object
+from sam_segment import sam_segment_object
 
 def setup_args(parser):
     parser.add_argument(
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     args = parser.parse_args(sys.argv[1:])
     
     if args.coords_type == "click":
-        point_coord_sets, point_label_sets = get_clicked_point(args.input_img)
+        point_coord_sets, point_label_sets = get_clicked_point(args.input_img, args.output_dir, args.sam_ckpt)
     elif args.coords_type == "box":
         # TODO
         latest_coords = get_box_point(args.input_img)

@@ -1,32 +1,62 @@
 import cv2
-import numpy as np
-from PIL import Image
+import os
+import time
+from sam_segment import sam_segment_object
 
-def get_clicked_point(img_path):
+def get_clicked_point(img_path, output_dir, sam_ckpt):
     img = cv2.imread(img_path)
+    _,file_path = os.path.split(img_path)
+    out_img = None
     cv2.namedWindow("image")
     cv2.imshow("image", img)
 
     last_point = []
+    point_label = 1
     point_coord_sets = []
     point_labels_sets = []
     keep_looping = True
 
     def mouse_callback(event, x, y, flags, param):
-        nonlocal last_point, keep_looping, img
+        nonlocal last_point, point_label, keep_looping, img, out_img, file_path
         if event == cv2.EVENT_LBUTTONDOWN:
-            last_point = [x, y]
-            point_coord_sets.append(last_point)
-            point_labels_sets.append(1)
-            cv2.circle(img, tuple(last_point), 5, (0, 0, 255), -1)
+            if not last_point:
+                last_point = [x, y]
+                point_label = 1
+                point_coord_sets.append(last_point)
+                point_labels_sets.append(point_label)
+                cv2.circle(img, tuple(last_point), 5, (0, 0, 255), -1)
+            else:
+                point_coord_sets.append([x, y])
+                point_labels_sets.append(1)
+                cv2.circle(out_img, tuple(last_point), 5, (0, 0, 255), -1)
+        
+            # click_point for sam segment
+            sam_segment_object(img_path, output_dir, sam_ckpt, point_coord_sets, point_labels_sets)
+            out_img = cv2.imread(output_dir + '/' + file_path)
+                
         elif event == cv2.EVENT_RBUTTONDOWN:
-            last_point = [x, y]
-            point_coord_sets.append(last_point)
-            point_labels_sets.append(0)
-            cv2.circle(img, tuple(last_point), 5, (0, 0, 0), -1)
+            if not last_point:
+                last_point = [x, y]
+                point_label = 0
+                point_coord_sets.append(last_point)
+                point_labels_sets.append(point_label)
+                cv2.circle(img, tuple(last_point), 5, (0, 0, 0), -1)
+            else:
+                point_coord_sets.append([x, y])
+                point_labels_sets.append(0)
+                cv2.circle(out_img, tuple(last_point), 5, (0, 0, 0), -1)
+            # sam_segment_object(img_path, output_dir, sam_ckpt, last_point, point_label)
+            # click_point for sam segment
+            sam_segment_object(img_path, output_dir, sam_ckpt, point_coord_sets, point_labels_sets)
+            out_img = cv2.imread(output_dir + '/' + file_path)
+            
         elif event == cv2.EVENT_MBUTTONDOWN:
             keep_looping = False
-        cv2.imshow("image", img)
+        
+        if out_img is not None:
+            cv2.imshow("image", out_img)
+        else:
+            cv2.imshow("image", img)
 
     cv2.setMouseCallback("image", mouse_callback)
     while keep_looping:
