@@ -5,11 +5,9 @@ import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
 
-from ultralytics import FastSAM, SAM
-from ultralytics.models.fastsam import FastSAMPrompt
 # from lama_inpaint import inpaint_img_with_lama
 from utils import get_clicked_point, get_box_point, get_brush_point
-
+from utils import sam_segment_object
 
 def setup_args(parser):
     parser.add_argument(
@@ -39,8 +37,8 @@ def setup_args(parser):
     )
     parser.add_argument(
         "--sam_model_type", type=str,
-        default="FastSAM-s", choices=['FastSAM-s', 'FastSAM-x', 'mobile_sam'],
-        help="The type of sam model to load. Default: 'FastSAM-s"
+        default="mobile_sam", choices=['FastSAM-s', 'FastSAM-x', 'mobile_sam'],
+        help="The type of sam model to load. Default: 'mobile_sam"
     )
     parser.add_argument(
         "--sam_ckpt", type=str, required=True,
@@ -62,10 +60,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     setup_args(parser)
     args = parser.parse_args(sys.argv[1:])
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     
     if args.coords_type == "click":
-        latest_coords = get_clicked_point(args.input_img)
+        point_coord_sets, point_label_sets = get_clicked_point(args.input_img)
     elif args.coords_type == "box":
         # TODO
         latest_coords = get_box_point(args.input_img)
@@ -74,23 +71,6 @@ if __name__ == "__main__":
         latest_coords = get_brush_point(args.input_img)
     elif args.coords_type == "key_in":
         # 作为API提供给前端服务
-        latest_coords = args.point_coords
+        point_coord_sets, point_label_sets = args.point_coords, args.point_labels
 
-    latest_labels = args.point_labels
-    
-    # 选择MODEL segment anything
-    if args.sam_ckpt != "./weights/mobile_sam.pt":
-        model = FastSAM(args.sam_ckpt)
-        # retina_masks 要求masks是高分辨率的，为了准确性
-        results = model(args.input_img,device=DEVICE,retina_masks=True,imgsz=1024,conf=0.4,iou=0.9)
-        prompt_process = FastSAMPrompt(args.input_img, results, device=DEVICE)
-        # Point prompt
-        # points default [[0,0]] [[x1,y1],[x2,y2]]
-        # point_label default [0] [1,0] 0:background, 1:foreground
-        ann = prompt_process.point_prompt(points=[latest_coords], pointlabel=latest_labels)
-        prompt_process.plot(annotations=ann, output=args.output_dir)
-        
-        # plt.show()
-        
-    else:
-        model = SAM(args.sam_ckpt)
+    sam_segment_object(args.input_img, args.output_dir, args.sam_ckpt, point_coord_sets, point_label_sets)
